@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 type OfflineTranscribe struct {
@@ -15,51 +14,6 @@ type OfflineTranscribe struct {
 
 func NewOfflineTranscribe() *OfflineTranscribe {
 	return &OfflineTranscribe{}
-}
-
-func (ot *OfflineTranscribe) formatTimestamp(seconds float64) string {
-	hours := int(seconds / 3600)
-	minutes := int((seconds - float64(hours*3600)) / 60)
-	secs := seconds - float64(hours*3600) - float64(minutes*60)
-	return fmt.Sprintf("%02d:%02d:%06.3f", hours, minutes, secs)
-}
-
-func (ot *OfflineTranscribe) generateSampleResults(timestampType string) string {
-	// This is placeholder content - in a real implementation, this would come from Whisper
-	var results string
-	
-	if timestampType == "word" {
-		results = `[00:00:01.240] Hello
-[00:00:01.480] there,
-[00:00:01.720] this
-[00:00:01.960] is
-[00:00:02.120] a
-[00:00:02.280] sample
-[00:00:02.560] transcription
-[00:00:03.000] with
-[00:00:03.200] word-level
-[00:00:03.680] timestamps.
-[00:00:04.120] Each
-[00:00:04.280] word
-[00:00:04.440] has
-[00:00:04.600] its
-[00:00:04.760] own
-[00:00:04.920] precise
-[00:00:05.240] timestamp
-[00:00:05.600] for
-[00:00:05.760] easy
-[00:00:05.960] navigation.`
-	} else {
-		results = `[00:00:01.240 - 00:00:03.680] Hello there, this is a sample transcription with word-level timestamps.
-
-[00:00:04.120 - 00:00:06.200] Each word has its own precise timestamp for easy navigation.
-
-[00:00:06.500 - 00:00:09.800] This sentence-level format groups words together for better readability.
-
-[00:00:10.100 - 00:00:13.500] You can quickly find specific sections using the time references provided.`
-	}
-	
-	return results
 }
 
 func (ot *OfflineTranscribe) processAudio(inputFile, modelSize, timestampType string) (string, error) {
@@ -72,17 +26,29 @@ func (ot *OfflineTranscribe) processAudio(inputFile, modelSize, timestampType st
 		return "", fmt.Errorf("file does not exist: %s", inputFile)
 	}
 	
-	fmt.Println("Loading model... (this may take a moment)")
-	time.Sleep(1 * time.Second)
+	fmt.Printf("Loading Whisper model: %s...\n", modelSize)
+	
+	transcriber := NewWhisperTranscriber()
+	defer transcriber.Close()
+	
+	// Load the model
+	if err := transcriber.LoadModel(modelSize); err != nil {
+		return "", fmt.Errorf("failed to load model: %v", err)
+	}
 	
 	fmt.Println("Transcribing audio...")
-	time.Sleep(2 * time.Second)
 	
-	// Generate sample results (in real implementation, this would be actual Whisper processing)
-	results := ot.generateSampleResults(timestampType)
+	// Transcribe the audio
+	result, err := transcriber.TranscribeFile(inputFile, timestampType)
+	if err != nil {
+		return "", fmt.Errorf("transcription failed: %v", err)
+	}
+	
+	// Format the results
+	formattedOutput := transcriber.FormatResults(result, timestampType)
 	
 	fmt.Println("Transcription complete!")
-	return results, nil
+	return formattedOutput, nil
 }
 
 func (ot *OfflineTranscribe) saveResults(results, outputFile string) error {

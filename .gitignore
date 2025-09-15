@@ -1,3 +1,7 @@
 /.github
 /OfflineTranscribe-CLI.exe
 /OfflineTranscribe-Web.exe
+/whisper-bin-x64
+/models
+*.wav
+*.txt

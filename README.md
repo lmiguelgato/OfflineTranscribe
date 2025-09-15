@@ -1,182 +1,214 @@
 # OfflineTranscribe - Offline Speech-to-Text Tool
 
-A standalone, offline speech-to-text transcription tool built with Go that processes audio files and generates timestamped transcriptions without requiring internet connectivity.
+A standalone, offline speech-to-text transcription tool that works without an internet connection. Convert audio files to text with precise timestamps for easy navigation and reference.
 
 ## Features
 
-- **Fully Offline**: Works without internet connection
-- **Multiple Interfaces**: Command-line and web browser GUI
-- **High Performance**: Built with Go for speed and efficiency
-- **Timestamped Output**: Generates precise timestamps for easy navigation
-- **Flexible Granularity**: Choose between word-level or sentence-level timestamps
-- **User-Friendly**: Simple interfaces for both technical and non-technical users
-- **Multiple Formats**: Supports WAV, MP3, MP4, and other audio formats
-- **Standalone**: Single executable files with no dependencies
+- **Completely Offline**: No internet connection required after setup
+- **Standalone Executable**: No dependencies to install for end users
+- **Multiple Interfaces**: Command-line and web browser interfaces
+- **Precise Timestamps**: Word-level or sentence-level timing information
+- **Multiple Model Sizes**: Choose between speed and accuracy
 - **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Multiple Audio Formats**: Supports WAV, MP3, MP4, and more
 
 ## Quick Start
 
-### Download and Run (Easiest)
-1. Download the appropriate executable for your system from the releases page
-2. **For Web GUI**: Double-click `OfflineTranscribe-Web.exe` and open http://localhost:8080 in your browser
-3. **For CLI**: Run `OfflineTranscribe-CLI.exe` in terminal/command prompt
+### 1. Download Required Files
 
-### Available Versions
-- **OfflineTranscribe-Web.exe** - Modern web interface (recommended for most users)
-- **OfflineTranscribe-CLI.exe** - Command-line interface for advanced users
-- **OfflineTranscribe-Standalone.exe** - Optimized single executable
+**Download Whisper Executable:**
+- Go to [Whisper.cpp Releases](https://github.com/ggerganov/whisper.cpp/releases)
+- Download the appropriate version for your system
+- Extract the executable to the OfflineTranscribe directory or subdirectory
 
-## Usage
+**Supported locations for whisper executable:**
+- `whisper.exe` or `whisper` (in main directory)
+- `whisper-bin-x64/Release/whisper-cli.exe` (Windows build directory)
+- `whisper-bin-x64/Release/main.exe` (Alternative Windows build)
+- `bin/whisper.exe` or `bin/whisper` (bin subdirectory)
 
-### Web Interface (Recommended)
+**Download Models:**
+Run the included download script:
 ```bash
-# Start the web server
-./OfflineTranscribe-Web.exe
+# Windows
+download_models.bat
 
-# Open your browser to http://localhost:8080
-# Drag and drop your audio file or click to browse
-# Select model size and timestamp type
-# Click "Process Audio" and wait for results
+# Linux/Mac
+chmod +x download_models.sh
+./download_models.sh
 ```
 
-### Command Line Interface
+Or download manually:
+- [Tiny Model (~39 MB)](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin) - Fastest, least accurate
+- [Base Model (~142 MB)](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin) - Good balance (recommended)
+- [Small Model (~466 MB)](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin) - Better accuracy, slower
+- [Medium Model (~1.5 GB)](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin) - Best accuracy, slowest
+
+Save models in the `models/` directory.
+
+### 2. Usage
+
+**Interactive Mode (Easiest):**
 ```bash
-# Interactive mode
-./OfflineTranscribe-CLI.exe
-
-# Direct processing
-./OfflineTranscribe-CLI.exe recording.wav
-./OfflineTranscribe-CLI.exe recording.wav -model small -type sentence
-./OfflineTranscribe-CLI.exe recording.wav -output transcript.txt
+./OfflineTranscribe-cli.exe    # Windows
+./OfflineTranscribe-cli        # Linux/Mac
 ```
 
-### CLI Options
-- `-model <size>`: Model size (`tiny`, `base`, `small`, `medium`)
-- `-type <type>`: Timestamp type (`word`, `sentence`) 
-- `-output <file>`: Output file path
+**Command Line Mode:**
+```bash
+# Basic usage
+./OfflineTranscribe-cli.exe recording.wav
 
-## Output Format
-
-### Word-level timestamps:
-```
-[00:00:12.340] Hello
-[00:00:12.580] there,
-[00:00:13.120] how
-[00:00:13.340] are
-[00:00:13.560] you
+# With options
+./OfflineTranscribe-cli.exe recording.wav -model small -type sentence -output transcript.txt
 ```
 
-### Sentence-level timestamps:
+**Web Interface:**
+```bash
+./OfflineTranscribe-web.exe    # Windows
+./OfflineTranscribe-web        # Linux/Mac
 ```
-[00:00:12.340 - 00:00:15.120] Hello there, how are you doing today?
+Then open http://localhost:8080 in your browser.
 
-[00:00:15.340 - 00:00:18.560] I hope everything is going well for you.
+## Command Line Options
+
+- `-model <size>`: Model size (tiny, base, small, medium) - default: base
+- `-type <type>`: Timestamp type (word, sentence) - default: word  
+- `-output <file>`: Output file path - default: `<input>_transcription.txt`
+
+## Output Formats
+
+**Word-level timestamps:**
+```
+[00:00:01.240] Hello
+[00:00:01.480] there,
+[00:00:01.720] this
+[00:00:01.960] is
+[00:00:02.120] a
+[00:00:02.280] sample
 ```
 
-## Model Sizes
+**Sentence-level timestamps:**
+```
+[00:00:01.240 - 00:00:03.680] Hello there, this is a sample transcription.
 
-| Model  | Size  | Speed | Accuracy | Recommended For |
-|--------|-------|-------|----------|-----------------|
-| tiny   | 39MB  | Fastest | Basic | Quick testing |
-| base   | 74MB  | Fast | Good | Most users |
-| small  | 244MB | Medium | Better | Quality focused |
-| medium | 769MB | Slow | Best | Maximum accuracy |
+[00:00:04.120 - 00:00:06.200] Each sentence has its own time range.
+```
 
 ## Building from Source
 
-### Prerequisites
-- Go 1.21 or higher
+**Prerequisites:**
+- Go 1.21 or later
+- Git
 
-### Build All Versions
+**Build Steps:**
 ```bash
-# Windows
-build.bat
+# Clone the repository
+git clone <repository-url>
+cd OfflineTranscribe
 
-# Linux/macOS
-chmod +x build.sh
-./build.sh
+# Download dependencies
+go mod tidy
+
+# Build CLI version
+go build -o OfflineTranscribe-cli.exe cli.go whisper.go
+
+# Build web version  
+go build -o OfflineTranscribe-web.exe web.go whisper.go
+
+# For other platforms
+GOOS=linux GOARCH=amd64 go build -o OfflineTranscribe-cli-linux cli.go whisper.go
+GOOS=darwin GOARCH=amd64 go build -o OfflineTranscribe-cli-mac cli.go whisper.go
 ```
 
-### Manual Build
-```bash
-# CLI version
-go build -o OfflineTranscribe-CLI cli.go
+## Project Structure
 
-# Web version  
-go build -o OfflineTranscribe-Web web.go
-
-# Optimized standalone
-go build -ldflags "-s -w" -o OfflineTranscribe-Standalone cli.go
-```
-
-## Development
-
-### Project Structure
 ```
 OfflineTranscribe/
-├── cli.go              # Command-line interface
-├── web.go              # Web server and API
-├── index.html          # Web interface
-├── build.bat           # Windows build script
-├── build.sh            # Linux/macOS build script
-├── go.mod              # Go dependencies
-└── README.md           # Documentation
+├── cli.go                 # Command-line interface
+├── web.go                 # Web server interface  
+├── whisper.go             # Whisper integration
+├── index.html             # Web interface frontend
+├── download_models.bat    # Windows model download script
+├── download_models.sh     # Unix model download script
+├── go.mod                 # Go module definition
+├── README.md              # This file
+├── models/                # Downloaded Whisper models
+│   ├── ggml-tiny.bin
+│   ├── ggml-base.bin
+│   ├── ggml-small.bin
+│   └── ggml-medium.bin
+└── whisper.exe            # Whisper executable (download separately)
 ```
 
-### Key Components
-- **CLI Interface**: Interactive and direct command-line processing
-- **Web Interface**: Modern drag-and-drop browser interface
-- **Audio Processing**: Placeholder for Whisper.cpp integration
-- **Timestamp Generation**: Word and sentence-level timing
-- **File Handling**: Temporary file management and cleanup
+## Model Comparison
 
-## Roadmap
+| Model  | Size   | Speed | Accuracy | RAM Usage | Best For |
+|--------|--------|-------|----------|-----------|----------|
+| Tiny   | ~39 MB | Fast  | Basic    | ~390 MB   | Quick drafts, real-time |
+| Base   | ~142 MB| Good  | Good     | ~500 MB   | General use (recommended) |
+| Small  | ~466 MB| Slow  | Better   | ~750 MB   | Important recordings |
+| Medium | ~1.5 GB| Slower| Best     | ~1.5 GB   | Maximum accuracy needed |
 
-### Current (Demo Version)
-- ✅ CLI and Web interfaces
-- ✅ File upload and processing simulation
-- ✅ Timestamp formatting
-- ✅ Cross-platform builds
+## Supported Audio Formats
 
-### Next Steps (Production Version)
-- [ ] Integrate actual Whisper.cpp for real transcription
-- [ ] Add model downloading and caching
-- [ ] Implement progress tracking for long files
-- [ ] Add batch processing capabilities
-- [ ] Include audio format conversion
+- WAV (recommended for best quality)
+- MP3
+- MP4
+- M4A
+- FLAC
+- OGG
 
-## Technical Details
+## Use Cases
 
-- **Language**: Go 1.21+
-- **Web Framework**: Standard library HTTP server
-- **Frontend**: Vanilla JavaScript with modern CSS
-- **Audio Processing**: Ready for Whisper.cpp integration
-- **Build**: Single static binaries with no external dependencies
+- **Meeting Transcription**: Convert recorded meetings to searchable text
+- **Interview Analysis**: Transcribe interviews with precise timestamps
+- **Lecture Notes**: Convert recorded lectures to text with time references
+- **Podcast Transcription**: Create text versions of audio content
+- **Accessibility**: Generate captions and transcripts for audio content
+- **Content Creation**: Extract quotes and segments from longer recordings
 
-## Deployment
+## Privacy & Security
 
-The built executables are completely self-contained:
-- No Go installation required on target machines
-- No external dependencies or libraries needed
-- Can be distributed as single files
-- Work on fresh operating system installations
+- **Completely Offline**: Your audio never leaves your computer
+- **No Data Collection**: No telemetry or usage tracking
+- **Local Processing**: All transcription happens on your machine
+- **No Internet Required**: Works in air-gapped environments
+
+## Troubleshooting
+
+**"whisper executable not found"**
+- Download whisper.cpp from the releases page
+- Place the executable in the OfflineTranscribe directory
+- Ensure it's named `whisper.exe` (Windows) or `whisper` (Unix)
+
+**"model file not found"**
+- Run the download script: `download_models.bat` or `./download_models.sh`
+- Or manually download models to the `models/` directory
+
+**"transcription failed"**
+- Check that your audio file is in a supported format
+- Ensure the audio file isn't corrupted
+- Try with a different model size
+
+**Web interface not loading**
+- Check that `index.html` is in the same directory as the executable
+- Ensure port 8080 isn't blocked by firewall
+- Try a different port: `./OfflineTranscribe-web.exe 3000`
+
+## Performance Tips
+
+- Use smaller models for faster processing
+- Convert audio to WAV format for best compatibility
+- Use shorter audio segments (under 30 minutes) for better performance
+- Close other applications to free up RAM when using larger models
 
 ## License
 
-[Add your license information here]
+This project is open source. See LICENSE file for details.
+
+Whisper.cpp is developed by Georgi Gerganov and contributors under MIT license.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## Support
-
-For issues, questions, or contributions, please [create an issue](link-to-issues) on the repository.
-
----
-
-**Note**: This is currently a demonstration version with simulated transcription. Integration with actual Whisper.cpp speech recognition will provide real audio processing capabilities.
+Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.

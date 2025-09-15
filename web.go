@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 type WebServer struct {
@@ -131,58 +130,24 @@ func (ws *WebServer) handleTranscribe(w http.ResponseWriter, r *http.Request) {
 func (ws *WebServer) processAudio(inputFile, modelSize, timestampType string) (string, error) {
 	log.Printf("Processing audio file: %s with model: %s, timestamps: %s", inputFile, modelSize, timestampType)
 	
-	// Simulate processing time based on model size
-	var processingTime time.Duration
-	switch modelSize {
-	case "tiny":
-		processingTime = 2 * time.Second
-	case "base":
-		processingTime = 3 * time.Second
-	case "small":
-		processingTime = 5 * time.Second
-	case "medium":
-		processingTime = 8 * time.Second
-	default:
-		processingTime = 3 * time.Second
+	transcriber := NewWhisperTranscriber()
+	defer transcriber.Close()
+	
+	// Load the model
+	if err := transcriber.LoadModel(modelSize); err != nil {
+		return "", fmt.Errorf("failed to load model: %v", err)
 	}
 	
-	time.Sleep(processingTime)
-	
-	// Generate sample results (in real implementation, this would be actual Whisper processing)
-	return ws.generateSampleResults(timestampType), nil
-}
-
-func (ws *WebServer) generateSampleResults(timestampType string) string {
-	if timestampType == "word" {
-		return `[00:00:01.240] Hello
-[00:00:01.480] there,
-[00:00:01.720] this
-[00:00:01.960] is
-[00:00:02.120] a
-[00:00:02.280] sample
-[00:00:02.560] transcription
-[00:00:03.000] with
-[00:00:03.200] word-level
-[00:00:03.680] timestamps.
-[00:00:04.120] Each
-[00:00:04.280] word
-[00:00:04.440] has
-[00:00:04.600] its
-[00:00:04.760] own
-[00:00:04.920] precise
-[00:00:05.240] timestamp
-[00:00:05.600] for
-[00:00:05.760] easy
-[00:00:05.960] navigation.`
-	} else {
-		return `[00:00:01.240 - 00:00:03.680] Hello there, this is a sample transcription with word-level timestamps.
-
-[00:00:04.120 - 00:00:06.200] Each word has its own precise timestamp for easy navigation.
-
-[00:00:06.500 - 00:00:09.800] This sentence-level format groups words together for better readability.
-
-[00:00:10.100 - 00:00:13.500] You can quickly find specific sections using the time references provided.`
+	// Transcribe the audio
+	result, err := transcriber.TranscribeFile(inputFile, timestampType)
+	if err != nil {
+		return "", fmt.Errorf("transcription failed: %v", err)
 	}
+	
+	// Format the results
+	formattedOutput := transcriber.FormatResults(result, timestampType)
+	
+	return formattedOutput, nil
 }
 
 func (ws *WebServer) sendJSONResponse(w http.ResponseWriter, response TranscriptionResponse) {

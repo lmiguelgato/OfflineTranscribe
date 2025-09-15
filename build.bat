@@ -1,54 +1,53 @@
 @echo off
-echo Building OfflineTranscribe Go Applications...
+echo ============================================
+echo OfflineTranscribe - Build Script
+echo ============================================
 echo.
 
-REM Check if Go is installed
-go version >nul 2>&1
-if errorlevel 1 (
+echo Checking Go installation...
+go version
+if %ERRORLEVEL% NEQ 0 (
     echo Error: Go is not installed or not in PATH
-    echo Please install Go from https://golang.org
+    echo Please install Go from https://golang.org/dl/
     pause
     exit /b 1
 )
 
+echo.
+echo Downloading dependencies...
+go mod tidy
+
+echo.
 echo Building CLI version...
-go build -o OfflineTranscribe-CLI.exe cli.go
-if exist "OfflineTranscribe-CLI.exe" (
-    echo ✓ CLI version built successfully: OfflineTranscribe-CLI.exe
-) else (
-    echo ✗ Failed to build CLI version
+go build -ldflags "-s -w" -o OfflineTranscribe-cli.exe cli.go whisper.go
+if %ERRORLEVEL% NEQ 0 (
+    echo Error: Failed to build CLI version
+    pause
+    exit /b 1
 )
 
-echo.
-echo Building Web GUI version...
-go build -o OfflineTranscribe-Web.exe web.go
-if exist "OfflineTranscribe-Web.exe" (
-    echo ✓ Web GUI version built successfully: OfflineTranscribe-Web.exe
-) else (
-    echo ✗ Failed to build Web GUI version
-)
-
-echo.
-echo Building static binary (all dependencies included)...
-go build -ldflags "-s -w" -o OfflineTranscribe-Standalone.exe cli.go
-if exist "OfflineTranscribe-Standalone.exe" (
-    echo ✓ Standalone version built successfully: OfflineTranscribe-Standalone.exe
-) else (
-    echo ✗ Failed to build standalone version
+echo Building web version...
+go build -ldflags "-s -w" -o OfflineTranscribe-web.exe web.go whisper.go
+if %ERRORLEVEL% NEQ 0 (
+    echo Error: Failed to build web version
+    pause
+    exit /b 1
 )
 
 echo.
 echo ============================================
-echo Build completed!
-echo.
-echo Available executables:
-echo   OfflineTranscribe-CLI.exe        - Command line interface
-echo   OfflineTranscribe-Web.exe        - Web browser interface
-echo   OfflineTranscribe-Standalone.exe - Optimized standalone version
-echo.
-echo These are completely self-contained and can be distributed
-echo to users without requiring Go installation.
+echo Build completed successfully!
 echo ============================================
-
+echo.
+echo Files created:
+echo - OfflineTranscribe-cli.exe  (Command-line interface)
+echo - OfflineTranscribe-web.exe  (Web interface)
+echo.
+echo Next steps:
+echo 1. ✓ Whisper executable found in whisper-bin-x64\Release\
+echo 2. Download speech recognition models: run download_models.bat
+echo 3. Start transcribing real audio files!
+echo.
+echo Note: Use actual audio files (WAV, MP3, etc.) - not text files
 echo.
 pause
