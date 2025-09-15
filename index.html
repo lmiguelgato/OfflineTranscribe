@@ -182,11 +182,16 @@
             text-align: center;
             margin-bottom: 20px;
             transition: all 0.3s;
+            cursor: pointer;
         }
         
         .drag-drop.dragover {
             background: #f0f8ff;
             border-color: #00f2fe;
+        }
+        
+        .hidden-file-input {
+            display: none;
         }
     </style>
 </head>
@@ -203,8 +208,8 @@
                     <label for="audioFile">Audio File</label>
                     <div class="drag-drop" id="dragDrop">
                         <p>Drag and drop your audio file here or click to browse</p>
-                        <input type="file" id="audioFile" name="audioFile" accept=".wav,.mp3,.mp4,.m4a,.flac" required>
                     </div>
+                    <input type="file" id="audioFile" name="audioFile" accept=".wav,.mp3,.mp4,.m4a,.flac" required class="hidden-file-input">
                     <div id="fileInfo" class="file-info hidden"></div>
                 </div>
                 

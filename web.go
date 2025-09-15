@@ -37,6 +37,17 @@ func (ws *WebServer) handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) handleTranscribe(w http.ResponseWriter, r *http.Request) {
+	// Add CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	
+	// Handle preflight request
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -176,6 +187,7 @@ func (ws *WebServer) generateSampleResults(timestampType string) string {
 
 func (ws *WebServer) sendJSONResponse(w http.ResponseWriter, response TranscriptionResponse) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(response)
 }
 
