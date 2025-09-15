@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OfflineTranscribe - Offline Speech to Text</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input[type="file"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="file"]:focus, select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+        
+        .options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .status.processing {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .results {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .progress {
+            width: 100%;
+            height: 6px;
+            background: #e1e1e1;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            width: 0%;
+            transition: width 0.3s;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .file-info {
+            background: #e7f3ff;
+            border: 1px solid #b8daff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .drag-drop {
+            border: 2px dashed #4facfe;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        
+        .drag-drop.dragover {
+            background: #f0f8ff;
+            border-color: #00f2fe;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>OfflineTranscribe</h1>
+            <p>Offline Speech-to-Text Transcription</p>
+        </div>
+        
+        <div class="content">
+            <form id="transcriptionForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="audioFile">Audio File</label>
+                    <div class="drag-drop" id="dragDrop">
+                        <p>Drag and drop your audio file here or click to browse</p>
+                        <input type="file" id="audioFile" name="audioFile" accept=".wav,.mp3,.mp4,.m4a,.flac" required>
+                    </div>
+                    <div id="fileInfo" class="file-info hidden"></div>
+                </div>
+                
+                <div class="options">
+                    <div class="form-group">
+                        <label for="modelSize">Model Size</label>
+                        <select id="modelSize" name="modelSize">
+                            <option value="tiny">Tiny (Fast, 39MB)</option>
+                            <option value="base" selected>Base (Balanced, 74MB)</option>
+                            <option value="small">Small (Better, 244MB)</option>
+                            <option value="medium">Medium (Best, 769MB)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="timestampType">Timestamp Type</label>
+                        <select id="timestampType" name="timestampType">
+                            <option value="word" selected>Word Level</option>
+                            <option value="sentence">Sentence Level</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn" id="processBtn">Process Audio</button>
+            </form>
+            
+            <div id="status" class="status hidden"></div>
+            <div class="progress hidden" id="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            
+            <div id="results" class="results hidden"></div>
+            
+            <button id="downloadBtn" class="btn hidden" onclick="downloadResults()">Download Results</button>
+        </div>
+    </div>
+
+    <script>
+        let currentResults = '';
+        
+        // Drag and drop functionality
+        const dragDrop = document.getElementById('dragDrop');
+        const fileInput = document.getElementById('audioFile');
+        
+        dragDrop.addEventListener('click', () => fileInput.click());
+        
+        dragDrop.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragDrop.classList.add('dragover');
+        });
+        
+        dragDrop.addEventListener('dragleave', () => {
+            dragDrop.classList.remove('dragover');
+        });
+        
+        dragDrop.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragDrop.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                showFileInfo(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                showFileInfo(e.target.files[0]);
+            }
+        });
+        
+        function showFileInfo(file) {
+            const fileInfo = document.getElementById('fileInfo');
+            fileInfo.innerHTML = `
+                <strong>Selected File:</strong> ${file.name}<br>
+                <strong>Size:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                <strong>Type:</strong> ${file.type || 'Unknown'}
+            `;
+            fileInfo.classList.remove('hidden');
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.classList.remove('hidden');
+        }
+        
+        function showProgress(show) {
+            const progress = document.getElementById('progress');
+            if (show) {
+                progress.classList.remove('hidden');
+            } else {
+                progress.classList.add('hidden');
+            }
+        }
+        
+        document.getElementById('transcriptionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            const fileInput = document.getElementById('audioFile');
+            const modelSize = document.getElementById('modelSize').value;
+            const timestampType = document.getElementById('timestampType').value;
+            
+            if (!fileInput.files[0]) {
+                showStatus('Please select an audio file', 'error');
+                return;
+            }
+            
+            formData.append('audioFile', fileInput.files[0]);
+            formData.append('modelSize', modelSize);
+            formData.append('timestampType', timestampType);
+            
+            // Disable form
+            document.getElementById('processBtn').disabled = true;
+            showStatus('Processing audio... This may take several minutes.', 'processing');
+            showProgress(true);
+            
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentResults = result.results;
+                    document.getElementById('results').textContent = result.results;
+                    document.getElementById('results').classList.remove('hidden');
+                    document.getElementById('downloadBtn').classList.remove('hidden');
+                    showStatus('Transcription completed successfully!', 'success');
+                } else {
+                    showStatus(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Network error: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('processBtn').disabled = false;
+                showProgress(false);
+            }
+        });
+        
+        function downloadResults() {
+            if (!currentResults) return;
+            
+            const blob = new Blob([currentResults], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'transcription.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
