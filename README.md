@@ -7,7 +7,7 @@ A standalone, offline speech-to-text transcription tool that works without an in
 - **Completely Offline**: No internet connection required after setup
 - **Standalone Executable**: No dependencies to install for end users
 - **Multiple Interfaces**: Command-line and web browser interfaces
-- **Precise Timestamps**: Word-level or sentence-level timing information
+- **Precise Timestamps**: Sentence-level timing information for easy navigation
 - **Multiple Model Sizes**: Choose between speed and accuracy
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Multiple Audio Formats**: Supports WAV, MP3, MP4, and more
@@ -60,7 +60,7 @@ Save models in the `models/` directory.
 ./OfflineTranscribe-cli.exe recording.wav
 
 # With options
-./OfflineTranscribe-cli.exe recording.wav -model small -type sentence -output transcript.txt
+./OfflineTranscribe-cli.exe recording.wav -model small -output transcript.txt
 ```
 
 **Web Interface:**
@@ -73,20 +73,9 @@ Then open http://localhost:8080 in your browser.
 ## Command Line Options
 
 - `-model <size>`: Model size (tiny, base, small, medium) - default: base
-- `-type <type>`: Timestamp type (word, sentence) - default: word  
 - `-output <file>`: Output file path - default: `<input>_transcription.txt`
 
-## Output Formats
-
-**Word-level timestamps:**
-```
-[00:00:01.240] Hello
-[00:00:01.480] there,
-[00:00:01.720] this
-[00:00:01.960] is
-[00:00:02.120] a
-[00:00:02.280] sample
-```
+## Output Format
 
 **Sentence-level timestamps:**
 ```

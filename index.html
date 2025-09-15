@@ -223,14 +223,6 @@
                             <option value="medium">Medium (Best, 769MB)</option>
                         </select>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="timestampType">Timestamp Type</label>
-                        <select id="timestampType" name="timestampType">
-                            <option value="word" selected>Word Level</option>
-                            <option value="sentence">Sentence Level</option>
-                        </select>
-                    </div>
                 </div>
                 
                 <button type="submit" class="btn" id="processBtn">Process Audio</button>
@@ -313,7 +305,6 @@
             const formData = new FormData();
             const fileInput = document.getElementById('audioFile');
             const modelSize = document.getElementById('modelSize').value;
-            const timestampType = document.getElementById('timestampType').value;
             
             if (!fileInput.files[0]) {
                 showStatus('Please select an audio file', 'error');
@@ -322,7 +313,7 @@
             
             formData.append('audioFile', fileInput.files[0]);
             formData.append('modelSize', modelSize);
-            formData.append('timestampType', timestampType);
+            // Always use sentence-level timestamps
             
             // Disable form
             document.getElementById('processBtn').disabled = true;

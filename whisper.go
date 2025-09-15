@@ -122,15 +122,8 @@ func (wt *WhisperTranscriber) TranscribeFile(inputFile string, timestampType str
 	args = append(args, "-m", modelPath)
 	args = append(args, "-f", inputFile)
 	args = append(args, "-of", outputFile)
-	args = append(args, "-otxt")  // Output text file
-	args = append(args, "-nt")    // No timestamps in output (we'll add our own)
+	args = append(args, "-osrt")  // Always use SRT format for sentence-level timestamps
 	args = append(args, "-np")    // No print special tokens
-	
-	// Add word-level options if requested
-	if timestampType == "word" {
-		args = append(args, "-ml", "1") // Maximum line length for word-level
-		args = append(args, "-sow")     // Split on word rather than token
-	}
 	
 	// Execute whisper
 	cmd := exec.Command(wt.executablePath, args...)
@@ -143,123 +136,120 @@ func (wt *WhisperTranscriber) TranscribeFile(inputFile string, timestampType str
 		return nil, fmt.Errorf("whisper execution failed: %v\nOutput: %s", err, outputStr)
 	}
 	
-	// Read the generated transcription file
-	transcriptionFile := outputFile + ".txt"
-	content, err := os.ReadFile(transcriptionFile)
-	if err != nil {
-		// Check if whisper actually created any output files
+	// Read the generated transcription file (always SRT format)
+	transcriptionFile := outputFile + ".srt"
+	content, readErr := os.ReadFile(transcriptionFile)
+	if readErr != nil {
+		// Fallback to other possible files
 		possibleFiles := []string{
+			outputFile + ".srt",
 			outputFile + ".txt",
-			filepath.Join(outputDir, baseName + ".txt"),
-			inputFile + ".txt",
+			filepath.Join(outputDir, baseName + ".srt"),
 		}
 		
-		var foundFile string
 		for _, possibleFile := range possibleFiles {
-			if _, err := os.Stat(possibleFile); err == nil {
-				foundFile = possibleFile
+			if _, statErr := os.Stat(possibleFile); statErr == nil {
+				content, readErr = os.ReadFile(possibleFile)
+				transcriptionFile = possibleFile
 				break
 			}
 		}
-		
-		if foundFile != "" {
-			content, err = os.ReadFile(foundFile)
-			transcriptionFile = foundFile
-		} else {
-			return nil, fmt.Errorf("whisper did not create expected output file.\nTried: %v\nWhisper output: %s", possibleFiles, string(output))
-		}
-		
-		if err != nil {
-			return nil, fmt.Errorf("failed to read transcription output: %v", err)
-		}
+	}
+	
+	if readErr != nil {
+		return nil, fmt.Errorf("whisper did not create expected output file.\nWhisper output: %s", string(output))
 	}
 	
 	// Clean up temporary files
 	os.Remove(transcriptionFile)
 	
-	// Parse the output into segments
-	result := &TranscriptionResult{
+	// Parse SRT format for timestamps
+	segments := wt.parseSRTFormat(string(content))
+	
+	return &TranscriptionResult{
 		Text:     string(content),
-		Segments: wt.parseSegments(string(content), timestampType),
-	}
-	
-	// Clean up temporary files
-	os.Remove(outputFile + ".txt")
-	
-	return result, nil
+		Segments: segments,
+	}, nil
 }
 
-func (wt *WhisperTranscriber) parseSegments(content string, timestampType string) []Segment {
+// parseSRTFormat parses Whisper's SRT subtitle format
+func (wt *WhisperTranscriber) parseSRTFormat(content string) []Segment {
 	var segments []Segment
-	
-	// For now, create simple segments since whisper.cpp output parsing can be complex
-	// This is a simplified version - in a full implementation, you'd parse the actual whisper output format
 	lines := strings.Split(content, "\n")
 	
-	segmentDuration := 3.0 // Default 3-second segments
-	currentTime := 0.0
-	
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
+	i := 0
+	for i < len(lines) {
+		// Skip segment number
+		for i < len(lines) && strings.TrimSpace(lines[i]) != "" && !strings.Contains(lines[i], "-->") {
+			i++
 		}
 		
-		segment := Segment{
-			Start: currentTime,
-			End:   currentTime + segmentDuration,
-			Text:  line,
+		if i >= len(lines) {
+			break
 		}
 		
-		// If word-level timestamps are requested, create word segments
-		if timestampType == "word" {
-			words := strings.Fields(line)
-			wordDuration := segmentDuration / float64(len(words))
-			
-			for i, word := range words {
-				wordStart := currentTime + float64(i)*wordDuration
-				wordEnd := wordStart + wordDuration
+		// Parse timestamp line: 00:00:01,000 --> 00:00:03,500
+		timestampLine := strings.TrimSpace(lines[i])
+		if strings.Contains(timestampLine, "-->") {
+			parts := strings.Split(timestampLine, "-->")
+			if len(parts) == 2 {
+				startTime := wt.parseSRTTimestamp(strings.TrimSpace(parts[0]))
+				endTime := wt.parseSRTTimestamp(strings.TrimSpace(parts[1]))
 				
-				segment.Words = append(segment.Words, Word{
-					Start: wordStart,
-					End:   wordEnd,
-					Text:  word,
-				})
+				i++
+				
+				// Collect text lines until empty line
+				var textLines []string
+				for i < len(lines) && strings.TrimSpace(lines[i]) != "" {
+					textLines = append(textLines, strings.TrimSpace(lines[i]))
+					i++
+				}
+				
+				if len(textLines) > 0 {
+					text := strings.Join(textLines, " ")
+					segment := Segment{
+						Start: startTime,
+						End:   endTime,
+						Text:  text,
+					}
+					segments = append(segments, segment)
+				}
 			}
 		}
-		
-		segments = append(segments, segment)
-		currentTime += segmentDuration
+		i++
 	}
 	
 	return segments
+}
+
+// parseSRTTimestamp converts SRT timestamp format to seconds
+func (wt *WhisperTranscriber) parseSRTTimestamp(timestamp string) float64 {
+	// Format: 00:00:01,000
+	timestamp = strings.ReplaceAll(timestamp, ",", ".")
+	parts := strings.Split(timestamp, ":")
+	
+	if len(parts) != 3 {
+		return 0
+	}
+	
+	hours, _ := strconv.Atoi(parts[0])
+	minutes, _ := strconv.Atoi(parts[1])
+	seconds, _ := strconv.ParseFloat(parts[2], 64)
+	
+	return float64(hours*3600 + minutes*60) + seconds
 }
 
 func (wt *WhisperTranscriber) FormatResults(result *TranscriptionResult, timestampType string) string {
 	var output strings.Builder
 	
 	if timestampType == "word" {
-		// Word-level output
+		// Word-level output using whisper's native word timestamps
 		for _, segment := range result.Segments {
-			if len(segment.Words) > 0 {
-				for _, word := range segment.Words {
-					timestamp := formatTimestamp(word.Start)
-					output.WriteString(fmt.Sprintf("[%s] %s\n", timestamp, word.Text))
-				}
-			} else {
-				// Fallback if word-level data isn't available
-				words := strings.Fields(segment.Text)
-				wordDuration := (segment.End - segment.Start) / float64(len(words))
-				
-				for j, word := range words {
-					wordStart := segment.Start + float64(j)*wordDuration
-					timestamp := formatTimestamp(wordStart)
-					output.WriteString(fmt.Sprintf("[%s] %s\n", timestamp, word))
-				}
-			}
+			timestamp := formatTimestamp(segment.Start)
+			output.WriteString(fmt.Sprintf("[%s] %s\n", timestamp, segment.Text))
 		}
 	} else {
-		// Sentence-level output
+		// Sentence-level output using whisper's native segment timestamps
 		for _, segment := range result.Segments {
 			startTime := formatTimestamp(segment.Start)
 			endTime := formatTimestamp(segment.End)
@@ -277,8 +267,8 @@ func (wt *WhisperTranscriber) Close() {
 func formatTimestamp(seconds float64) string {
 	hours := int(seconds / 3600)
 	minutes := int((seconds - float64(hours*3600)) / 60)
-	secs := seconds - float64(hours*3600) - float64(minutes*60)
-	return fmt.Sprintf("%02d:%02d:%06.3f", hours, minutes, secs)
+	secs := int(seconds - float64(hours*3600) - float64(minutes*60))
+	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, secs)
 }
 
 // parseWhisperTimestamps parses timestamp format from whisper output

@@ -103,25 +103,8 @@ func (ot *OfflineTranscribe) interactive() {
 		modelSize = "base"
 	}
 	
-	// Get timestamp type
-	fmt.Println("\nTimestamp granularity:")
-	fmt.Println("1. word     - Individual word timestamps")
-	fmt.Println("2. sentence - Sentence-level timestamps")
-	fmt.Print("Choose granularity (1-2) [1]: ")
-	scanner.Scan()
-	choice = strings.TrimSpace(scanner.Text())
-	if choice == "" {
-		choice = "1"
-	}
-	
-	timestampTypes := map[string]string{
-		"1": "word",
-		"2": "sentence",
-	}
-	timestampType := timestampTypes[choice]
-	if timestampType == "" {
-		timestampType = "word"
-	}
+	// Use sentence-level timestamps by default
+	timestampType := "sentence"
 	
 	fmt.Println()
 	
@@ -171,12 +154,11 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  -model <size>    Model size: tiny, base, small, medium (default: base)")
-	fmt.Println("  -type <type>     Timestamp type: word, sentence (default: word)")
 	fmt.Println("  -output <file>   Output file (default: <input>_transcription.txt)")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  OfflineTranscribe recording.wav")
-	fmt.Println("  OfflineTranscribe recording.wav -model small -type sentence")
+	fmt.Println("  OfflineTranscribe recording.wav -model small")
 	fmt.Println("  OfflineTranscribe recording.wav -output transcript.txt")
 }
 
@@ -197,7 +179,7 @@ func main() {
 	// CLI mode
 	inputFile := os.Args[1]
 	modelSize := "base"
-	timestampType := "word"
+	timestampType := "sentence"  // Always use sentence-level timestamps
 	outputFile := ""
 	
 	// Parse command line arguments
@@ -210,8 +192,6 @@ func main() {
 		switch os.Args[i] {
 		case "-model":
 			modelSize = os.Args[i+1]
-		case "-type":
-			timestampType = os.Args[i+1]
 		case "-output":
 			outputFile = os.Args[i+1]
 		default:

@@ -75,13 +75,11 @@ func (ws *WebServer) handleTranscribe(w http.ResponseWriter, r *http.Request) {
 
 	// Get options
 	modelSize := r.FormValue("modelSize")
-	timestampType := r.FormValue("timestampType")
+	// Always use sentence-level timestamps
+	timestampType := "sentence"
 
 	if modelSize == "" {
 		modelSize = "base"
-	}
-	if timestampType == "" {
-		timestampType = "word"
 	}
 
 	// Save uploaded file temporarily
