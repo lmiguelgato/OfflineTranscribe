@@ -44,7 +44,7 @@ echo - OfflineTranscribe-cli.exe  (Command-line interface)
 echo - OfflineTranscribe-web.exe  (Web interface)
 echo.
 echo Next steps:
-echo 1. ✓ Whisper executable found in whisper-bin-x64\Release\
+echo 1. Whisper executable found in whisper-bin-x64\Release\
 echo 2. Download speech recognition models: run download_models.bat
 echo 3. Start transcribing real audio files!
 echo.
