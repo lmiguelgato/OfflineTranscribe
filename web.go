@@ -11,12 +11,13 @@ import (
 )
 
 type WebServer struct {
-	port string
+	port            string
+	resourceManager *ResourceManager
+	transcriber     *WhisperTranscriber
 }
 
 type TranscriptionRequest struct {
-	ModelSize     string `json:"modelSize"`
-	TimestampType string `json:"timestampType"`
+	ModelSize string `json:"modelSize"`
 }
 
 type TranscriptionResponse struct {
@@ -25,14 +26,17 @@ type TranscriptionResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
-const indexHTML = "index.html"
-
-func NewWebServer(port string) *WebServer {
-	return &WebServer{port: port}
+func NewWebServer(port string, resourceManager *ResourceManager) *WebServer {
+	transcriber := NewWhisperTranscriber(resourceManager)
+	return &WebServer{
+		port:            port,
+		resourceManager: resourceManager,
+		transcriber:     transcriber,
+	}
 }
 
 func (ws *WebServer) handleIndex(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "index.html")
+	http.ServeFile(w, r, ws.resourceManager.GetIndexHTML())
 }
 
 func (ws *WebServer) handleTranscribe(w http.ResponseWriter, r *http.Request) {
@@ -75,8 +79,6 @@ func (ws *WebServer) handleTranscribe(w http.ResponseWriter, r *http.Request) {
 
 	// Get options
 	modelSize := r.FormValue("modelSize")
-	// Always use sentence-level timestamps
-	timestampType := "sentence"
 
 	if modelSize == "" {
 		modelSize = "base"
@@ -110,7 +112,7 @@ func (ws *WebServer) handleTranscribe(w http.ResponseWriter, r *http.Request) {
 	outFile.Close()
 
 	// Process the audio file
-	results, err := ws.processAudio(tempFile, modelSize, timestampType)
+	results, err := ws.processAudio(tempFile, modelSize)
 	if err != nil {
 		ws.sendJSONResponse(w, TranscriptionResponse{
 			Success: false,
@@ -125,25 +127,22 @@ func (ws *WebServer) handleTranscribe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (ws *WebServer) processAudio(inputFile, modelSize, timestampType string) (string, error) {
-	log.Printf("Processing audio file: %s with model: %s, timestamps: %s", inputFile, modelSize, timestampType)
-	
-	transcriber := NewWhisperTranscriber()
-	defer transcriber.Close()
+func (ws *WebServer) processAudio(inputFile, modelSize string) (string, error) {
+	log.Printf("Processing audio file: %s with model: %s", inputFile, modelSize)
 	
 	// Load the model
-	if err := transcriber.LoadModel(modelSize); err != nil {
+	if err := ws.transcriber.LoadModel(modelSize); err != nil {
 		return "", fmt.Errorf("failed to load model: %v", err)
 	}
 	
 	// Transcribe the audio
-	result, err := transcriber.TranscribeFile(inputFile, timestampType)
+	result, err := ws.transcriber.TranscribeFile(inputFile, modelSize)
 	if err != nil {
 		return "", fmt.Errorf("transcription failed: %v", err)
 	}
 	
 	// Format the results
-	formattedOutput := transcriber.FormatResults(result, timestampType)
+	formattedOutput := ws.transcriber.FormatResults(result)
 	
 	return formattedOutput, nil
 }
@@ -170,6 +169,18 @@ func main() {
 		port = os.Args[1]
 	}
 	
-	server := NewWebServer(port)
+	// Initialize resource manager
+	resourceManager, err := NewResourceManager()
+	if err != nil {
+		log.Fatalf("Failed to initialize resources: %v", err)
+	}
+	defer resourceManager.Cleanup()
+	
+	// Verify resources
+	if err := resourceManager.VerifyResources(); err != nil {
+		log.Fatalf("Resource verification failed: %v", err)
+	}
+	
+	server := NewWebServer(port, resourceManager)
 	server.Start()
 }

@@ -12,6 +12,7 @@ import (
 
 type WhisperTranscriber struct {
 	executablePath string
+	resourceManager *ResourceManager
 }
 
 type TranscriptionResult struct {
@@ -33,77 +34,28 @@ type Word struct {
 	Text  string
 }
 
-func NewWhisperTranscriber() *WhisperTranscriber {
+func NewWhisperTranscriber(resourceManager *ResourceManager) *WhisperTranscriber {
 	return &WhisperTranscriber{
-		executablePath: "whisper.exe", // Will be bundled with the application
+		executablePath: resourceManager.GetWhisperExecutable(),
+		resourceManager: resourceManager,
 	}
 }
 
 func (wt *WhisperTranscriber) LoadModel(modelSize string) error {
-	// Model file paths based on size
-	modelPaths := map[string]string{
-		"tiny":   "models/ggml-tiny.bin",
-		"base":   "models/ggml-base.bin", 
-		"small":  "models/ggml-small.bin",
-		"medium": "models/ggml-medium.bin",
-	}
+	// Use embedded models from resource manager
+	modelPath := wt.resourceManager.GetModelPath(modelSize)
 	
-	modelPath, exists := modelPaths[modelSize]
-	if !exists {
-		return fmt.Errorf("unsupported model size: %s", modelSize)
-	}
-	
-	// Create models directory if it doesn't exist
-	if err := os.MkdirAll("models", 0755); err != nil {
-		return fmt.Errorf("failed to create models directory: %v", err)
-	}
-	
-	// Check if model exists, if not provide download instructions
-	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-		return fmt.Errorf("model file not found: %s\n\nTo download models, run the download script:\n"+
-			"Windows: download_models.bat\n"+
-			"Linux/Mac: ./download_models.sh", modelPath)
-	}
-	
-	// Check if whisper executable exists
-	if _, err := os.Stat(wt.executablePath); os.IsNotExist(err) {
-		// Try alternative paths
-		alternatives := []string{
-			"whisper",                                       // Unix systems
-			"./whisper",                                    // Local directory
-			"./whisper.exe",                                // Local directory Windows
-			"bin/whisper.exe",                              // Subdirectory Windows
-			"bin/whisper",                                  // Subdirectory Unix
-			"whisper-bin-x64/Release/whisper-cli.exe",      // Common whisper.cpp build location (CLI version)
-			"./whisper-bin-x64/Release/whisper-cli.exe",    // Relative path CLI
-			"whisper-bin-x64\\Release\\whisper-cli.exe",    // Windows path separators CLI
-			".\\whisper-bin-x64\\Release\\whisper-cli.exe", // Windows relative path CLI
-			"whisper-bin-x64/Release/main.exe",             // Alternative main executable
-			"./whisper-bin-x64/Release/main.exe",           // Relative path main
-			"whisper-bin-x64\\Release\\main.exe",           // Windows path main
-			".\\whisper-bin-x64\\Release\\main.exe",        // Windows relative path main
-		}
-		
-		found := false
-		for _, alt := range alternatives {
-			if _, err := os.Stat(alt); err == nil {
-				wt.executablePath = alt
-				found = true
-				break
-			}
-		}
-		
-		if !found {
-			return fmt.Errorf("whisper executable not found\n\n" +
-				"Please download whisper.cpp from: https://github.com/ggerganov/whisper.cpp/releases\n" +
-				"Extract the whisper executable to this directory or add it to your PATH")
-		}
+	// Check if model exists
+	if _, err := os.Stat(modelPath); err != nil {
+		// List available models for error message
+		availableModels, _ := wt.resourceManager.ListAvailableModels()
+		return fmt.Errorf("model '%s' not found. Available models: %v", modelSize, availableModels)
 	}
 	
 	return nil
 }
 
-func (wt *WhisperTranscriber) TranscribeFile(inputFile string, timestampType string) (*TranscriptionResult, error) {
+func (wt *WhisperTranscriber) TranscribeFile(inputFile string, modelSize string) (*TranscriptionResult, error) {
 	// Check if file exists
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
 		return nil, fmt.Errorf("audio file not found: %s", inputFile)
@@ -114,8 +66,8 @@ func (wt *WhisperTranscriber) TranscribeFile(inputFile string, timestampType str
 	baseName := strings.TrimSuffix(filepath.Base(inputFile), filepath.Ext(inputFile))
 	outputFile := filepath.Join(outputDir, baseName+"_whisper_output")
 	
-	// Determine model path (default to base)
-	modelPath := "models/ggml-base.bin"
+	// Get model path from resource manager
+	modelPath := wt.resourceManager.GetModelPath(modelSize)
 	
 	// Build whisper command
 	var args []string
@@ -239,22 +191,14 @@ func (wt *WhisperTranscriber) parseSRTTimestamp(timestamp string) float64 {
 	return float64(hours*3600 + minutes*60) + seconds
 }
 
-func (wt *WhisperTranscriber) FormatResults(result *TranscriptionResult, timestampType string) string {
+func (wt *WhisperTranscriber) FormatResults(result *TranscriptionResult) string {
 	var output strings.Builder
 	
-	if timestampType == "word" {
-		// Word-level output using whisper's native word timestamps
-		for _, segment := range result.Segments {
-			timestamp := formatTimestamp(segment.Start)
-			output.WriteString(fmt.Sprintf("[%s] %s\n", timestamp, segment.Text))
-		}
-	} else {
-		// Sentence-level output using whisper's native segment timestamps
-		for _, segment := range result.Segments {
-			startTime := formatTimestamp(segment.Start)
-			endTime := formatTimestamp(segment.End)
-			output.WriteString(fmt.Sprintf("[%s - %s] %s\n\n", startTime, endTime, segment.Text))
-		}
+	// Sentence-level output using whisper's native segment timestamps
+	for _, segment := range result.Segments {
+		startTime := formatTimestamp(segment.Start)
+		endTime := formatTimestamp(segment.End)
+		output.WriteString(fmt.Sprintf("[%s - %s] %s\n\n", startTime, endTime, segment.Text))
 	}
 	
 	return output.String()

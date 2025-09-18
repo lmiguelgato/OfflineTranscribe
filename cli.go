@@ -9,17 +9,36 @@ import (
 )
 
 type OfflineTranscribe struct {
-	currentFile string
+	currentFile     string
+	resourceManager *ResourceManager
+	transcriber     *WhisperTranscriber
 }
 
-func NewOfflineTranscribe() *OfflineTranscribe {
-	return &OfflineTranscribe{}
+func NewOfflineTranscribe() (*OfflineTranscribe, error) {
+	// Initialize resource manager and extract embedded files
+	rm, err := NewResourceManager()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize resources: %v", err)
+	}
+
+	// Verify resources were extracted correctly
+	if err := rm.VerifyResources(); err != nil {
+		rm.Cleanup()
+		return nil, fmt.Errorf("resource verification failed: %v", err)
+	}
+
+	// Create transcriber with resource manager
+	transcriber := NewWhisperTranscriber(rm)
+
+	return &OfflineTranscribe{
+		resourceManager: rm,
+		transcriber:     transcriber,
+	}, nil
 }
 
-func (ot *OfflineTranscribe) processAudio(inputFile, modelSize, timestampType string) (string, error) {
+func (ot *OfflineTranscribe) processAudio(inputFile, modelSize string) (string, error) {
 	fmt.Printf("Processing audio file: %s\n", inputFile)
 	fmt.Printf("Model size: %s\n", modelSize)
-	fmt.Printf("Timestamp type: %s\n", timestampType)
 	
 	// Check if file exists
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
@@ -28,24 +47,21 @@ func (ot *OfflineTranscribe) processAudio(inputFile, modelSize, timestampType st
 	
 	fmt.Printf("Loading Whisper model: %s...\n", modelSize)
 	
-	transcriber := NewWhisperTranscriber()
-	defer transcriber.Close()
-	
 	// Load the model
-	if err := transcriber.LoadModel(modelSize); err != nil {
+	if err := ot.transcriber.LoadModel(modelSize); err != nil {
 		return "", fmt.Errorf("failed to load model: %v", err)
 	}
 	
 	fmt.Println("Transcribing audio...")
 	
 	// Transcribe the audio
-	result, err := transcriber.TranscribeFile(inputFile, timestampType)
+	result, err := ot.transcriber.TranscribeFile(inputFile, modelSize)
 	if err != nil {
 		return "", fmt.Errorf("transcription failed: %v", err)
 	}
 	
 	// Format the results
-	formattedOutput := transcriber.FormatResults(result, timestampType)
+	formattedOutput := ot.transcriber.FormatResults(result)
 	
 	fmt.Println("Transcription complete!")
 	return formattedOutput, nil
@@ -103,13 +119,10 @@ func (ot *OfflineTranscribe) interactive() {
 		modelSize = "base"
 	}
 	
-	// Use sentence-level timestamps by default
-	timestampType := "sentence"
-	
 	fmt.Println()
 	
 	// Process audio
-	results, err := ot.processAudio(inputFile, modelSize, timestampType)
+	results, err := ot.processAudio(inputFile, modelSize)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
@@ -153,17 +166,30 @@ func printUsage() {
 	fmt.Println("  OfflineTranscribe <input> [options]                  - CLI mode")
 	fmt.Println()
 	fmt.Println("Options:")
-	fmt.Println("  -model <size>    Model size: tiny, base, small, medium (default: base)")
+	fmt.Println("  -model <size>    Model size: tiny, base (default: base)")
 	fmt.Println("  -output <file>   Output file (default: <input>_transcription.txt)")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  OfflineTranscribe recording.wav")
-	fmt.Println("  OfflineTranscribe recording.wav -model small")
+	fmt.Println("  OfflineTranscribe recording.wav -model tiny")
 	fmt.Println("  OfflineTranscribe recording.wav -output transcript.txt")
 }
 
+// Cleanup releases all resources
+func (ot *OfflineTranscribe) Cleanup() error {
+	if ot.resourceManager != nil {
+		return ot.resourceManager.Cleanup()
+	}
+	return nil
+}
+
 func main() {
-	ot := NewOfflineTranscribe()
+	ot, err := NewOfflineTranscribe()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+	defer ot.Cleanup()
 	
 	if len(os.Args) == 1 {
 		// Interactive mode
@@ -179,7 +205,6 @@ func main() {
 	// CLI mode
 	inputFile := os.Args[1]
 	modelSize := "base"
-	timestampType := "sentence"  // Always use sentence-level timestamps
 	outputFile := ""
 	
 	// Parse command line arguments
@@ -208,7 +233,7 @@ func main() {
 	}
 	
 	// Process audio
-	results, err := ot.processAudio(inputFile, modelSize, timestampType)
+	results, err := ot.processAudio(inputFile, modelSize)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
