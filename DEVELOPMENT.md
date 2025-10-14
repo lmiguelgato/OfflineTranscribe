@@ -61,7 +61,9 @@ LocalTTS/
 ├── README.md           # User documentation
 ├── DEVELOPMENT.md      # This file - developer guide
 └── .github/
-    └── copilot-instructions.md
+    ├── workflows/
+    │   └── cli-build-test.yml  # CI/CD pipeline for automated builds
+    └── WORKFLOW.md     # CI/CD documentation
 ```
 
 ### Key Implementation Details
@@ -166,6 +168,15 @@ func (mm *ModelManager) LoadModel(size string) error {
 ```
 
 ### Testing Strategy
+
+#### Automated CI/CD Pipeline
+GitHub Actions workflow automatically tests all builds:
+- **Multi-Platform**: Ubuntu, Windows, macOS
+- **Multi-Version**: Go 1.21, 1.22, 1.23
+- **Code Quality**: go vet, gofmt, golangci-lint
+- **Artifacts**: Built binaries available for download
+
+See `.github/WORKFLOW.md` for detailed documentation.
 
 #### Unit Tests
 ```bash

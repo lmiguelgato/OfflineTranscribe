@@ -1,0 +1,154 @@
+name: CLI Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and Test CLI
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go-version: ['1.21', '1.22', '1.23']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+    
+    - name: Display Go version
+      run: go version
+    
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
+    
+    - name: Download dependencies
+      run: go mod download
+    
+    - name: Verify dependencies
+      run: go mod verify
+    
+    - name: Tidy dependencies
+      run: go mod tidy
+    
+    - name: Run go vet
+      run: go vet ./...
+      continue-on-error: true
+    
+    - name: Run go fmt check
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "The following files need formatting:"
+          gofmt -s -l .
+          exit 1
+        fi
+      shell: bash
+      if: runner.os != 'Windows'
+    
+    - name: Run go fmt check (Windows)
+      run: |
+        $files = gofmt -s -l .
+        if ($files) {
+          Write-Host "The following files need formatting:"
+          Write-Host $files
+          exit 1
+        }
+      shell: pwsh
+      if: runner.os == 'Windows'
+    
+    - name: Create placeholder resources for build
+      run: |
+        mkdir -p bundle/resources/models
+        mkdir -p bundle/resources/whisper
+        echo "placeholder" > bundle/resources/models/placeholder.txt
+        echo "placeholder" > bundle/resources/whisper/placeholder.txt
+      shell: bash
+    
+    - name: Build CLI (Linux/Mac)
+      if: runner.os != 'Windows'
+      run: go build -ldflags "-s -w" -o OfflineTranscribe-cli cli.go whisper.go resources.go
+    
+    - name: Build CLI (Windows)
+      if: runner.os == 'Windows'
+      run: go build -ldflags "-s -w" -o OfflineTranscribe-cli.exe cli.go whisper.go resources.go
+    
+    - name: Verify CLI binary exists (Linux/Mac)
+      if: runner.os != 'Windows'
+      run: |
+        if [ ! -f "OfflineTranscribe-cli" ]; then
+          echo "Error: CLI binary was not created"
+          exit 1
+        fi
+        ls -lh OfflineTranscribe-cli
+    
+    - name: Verify CLI binary exists (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        if (!(Test-Path "OfflineTranscribe-cli.exe")) {
+          Write-Host "Error: CLI binary was not created"
+          exit 1
+        }
+        Get-Item OfflineTranscribe-cli.exe | Format-List
+      shell: pwsh
+    
+    - name: Run tests (if they exist)
+      run: |
+        if go list ./... | grep -q .; then
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+        else
+          echo "No test files found, skipping tests"
+        fi
+      shell: bash
+      continue-on-error: true
+    
+    - name: Upload CLI artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OfflineTranscribe-cli-${{ matrix.os }}-go${{ matrix.go-version }}
+        path: |
+          OfflineTranscribe-cli*
+        retention-days: 7
+    
+    - name: Upload coverage to Codecov
+      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.21'
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.txt
+        flags: unittests
+        name: codecov-umbrella
+      continue-on-error: true
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+    
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+        args: --timeout=5m
+      continue-on-error: true

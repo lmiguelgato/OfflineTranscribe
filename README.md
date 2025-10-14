@@ -1,5 +1,7 @@
 # OfflineTranscribe - Offline Speech-to-Text Tool
 
+[![CLI Build and Test](https://github.com/lmiguelgato/OfflineTranscribe/workflows/CLI%20Build%20and%20Test/badge.svg)](https://github.com/lmiguelgato/OfflineTranscribe/actions)
+
 A standalone, offline speech-to-text transcription tool that works without an internet connection. Convert audio files to text with precise timestamps for easy navigation and reference.
 
 ## Features
