@@ -82,6 +82,42 @@ func (ot *OfflineTranscribe) saveResults(results, outputFile string) error {
 	return nil
 }
 
+func (ot *OfflineTranscribe) searchWord(inputFile, modelSize, searchWord string) (string, error) {
+	fmt.Printf("Processing audio file: %s\n", inputFile)
+	fmt.Printf("Model size: %s\n", modelSize)
+	fmt.Printf("Searching for word: '%s'\n", searchWord)
+	
+	// Check if file exists
+	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
+		return "", fmt.Errorf("file does not exist: %s", inputFile)
+	}
+	
+	fmt.Printf("Loading Whisper model: %s...\n", modelSize)
+	
+	// Load the model
+	if err := ot.transcriber.LoadModel(modelSize); err != nil {
+		return "", fmt.Errorf("failed to load model: %v", err)
+	}
+	
+	fmt.Println("Transcribing audio...")
+	
+	// Transcribe the audio
+	result, err := ot.transcriber.TranscribeFile(inputFile, modelSize)
+	if err != nil {
+		return "", fmt.Errorf("transcription failed: %v", err)
+	}
+	
+	fmt.Println("Transcription complete! Searching for word...")
+	
+	// Search for the word
+	matches := ot.transcriber.SearchWord(result, searchWord)
+	
+	// Format the search results
+	formattedOutput := ot.transcriber.FormatSearchResults(matches, searchWord)
+	
+	return formattedOutput, nil
+}
+
 func (ot *OfflineTranscribe) interactive() {
 	fmt.Println("===========================================")
 	fmt.Println("OfflineTranscribe - Offline Speech-to-Text Tool")
@@ -119,9 +155,69 @@ func (ot *OfflineTranscribe) interactive() {
 		modelSize = "base"
 	}
 	
+	// Ask for mode: transcription or search
+	fmt.Println("\nMode:")
+	fmt.Println("1. Full transcription")
+	fmt.Println("2. Search for a word")
+	fmt.Print("Choose mode (1-2) [1]: ")
+	scanner.Scan()
+	modeChoice := strings.TrimSpace(scanner.Text())
+	if modeChoice == "" {
+		modeChoice = "1"
+	}
+	
 	fmt.Println()
 	
-	// Process audio
+	// Handle search mode
+	if modeChoice == "2" {
+		fmt.Print("Enter word to search: ")
+		scanner.Scan()
+		searchWord := strings.TrimSpace(scanner.Text())
+		
+		if searchWord == "" {
+			fmt.Println("Error: Search word cannot be empty")
+			return
+		}
+		
+		// Search for word
+		results, err := ot.searchWord(inputFile, modelSize, searchWord)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+		
+		// Display results
+		fmt.Println("\n=== SEARCH RESULTS ===")
+		fmt.Println(results)
+		fmt.Println("======================")
+		
+		// Save results
+		fmt.Print("\nSave results to file? (y/N): ")
+		scanner.Scan()
+		save := strings.ToLower(strings.TrimSpace(scanner.Text()))
+		
+		if save == "y" || save == "yes" {
+			baseName := strings.TrimSuffix(filepath.Base(inputFile), filepath.Ext(inputFile))
+			outputFile := fmt.Sprintf("%s_search_%s.txt", baseName, searchWord)
+			
+			fmt.Printf("Enter output filename [%s]: ", outputFile)
+			scanner.Scan()
+			userFile := strings.TrimSpace(scanner.Text())
+			if userFile != "" {
+				outputFile = userFile
+			}
+			
+			err = ot.saveResults(results, outputFile)
+			if err != nil {
+				fmt.Printf("Error saving file: %v\n", err)
+			} else {
+				fmt.Printf("Results saved to: %s\n", outputFile)
+			}
+		}
+		return
+	}
+	
+	// Process audio (standard transcription mode)
 	results, err := ot.processAudio(inputFile, modelSize)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -168,11 +264,14 @@ func printUsage() {
 	fmt.Println("Options:")
 	fmt.Println("  -model <size>    Model size: tiny, base (default: base)")
 	fmt.Println("  -output <file>   Output file (default: <input>_transcription.txt)")
+	fmt.Println("  -search <word>   Search for a word and return timestamps")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  OfflineTranscribe recording.wav")
 	fmt.Println("  OfflineTranscribe recording.wav -model tiny")
 	fmt.Println("  OfflineTranscribe recording.wav -output transcript.txt")
+	fmt.Println("  OfflineTranscribe recording.wav -search hello")
+	fmt.Println("  OfflineTranscribe recording.wav -search hello -model tiny")
 }
 
 // Cleanup releases all resources
@@ -206,6 +305,7 @@ func main() {
 	inputFile := os.Args[1]
 	modelSize := "base"
 	outputFile := ""
+	searchWord := ""
 	
 	// Parse command line arguments
 	for i := 2; i < len(os.Args); i += 2 {
@@ -219,11 +319,37 @@ func main() {
 			modelSize = os.Args[i+1]
 		case "-output":
 			outputFile = os.Args[i+1]
+		case "-search":
+			searchWord = os.Args[i+1]
 		default:
 			fmt.Printf("Error: unknown option %s\n", os.Args[i])
 			printUsage()
 			os.Exit(1)
 		}
+	}
+	
+	// Handle search mode
+	if searchWord != "" {
+		results, err := ot.searchWord(inputFile, modelSize, searchWord)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		
+		// Display search results
+		fmt.Println()
+		fmt.Println(results)
+		
+		// Optionally save search results
+		if outputFile != "" {
+			err = ot.saveResults(results, outputFile)
+			if err != nil {
+				fmt.Printf("Error saving file: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Search results saved to: %s\n", outputFile)
+		}
+		return
 	}
 	
 	// Set default output file if not specified
@@ -232,7 +358,7 @@ func main() {
 		outputFile = fmt.Sprintf("%s_transcription.txt", baseName)
 	}
 	
-	// Process audio
+	// Process audio (standard transcription mode)
 	results, err := ot.processAudio(inputFile, modelSize)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)

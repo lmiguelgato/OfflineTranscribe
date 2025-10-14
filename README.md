@@ -8,6 +8,7 @@ A standalone, offline speech-to-text transcription tool that works without an in
 - **Self-Contained Bundle**: Single executable with everything included (recommended)
 - **Multiple Interfaces**: Command-line and web browser interfaces
 - **Precise Timestamps**: Sentence-level timing information for easy navigation
+- **Word Search**: Find specific words in audio files with timestamps of each occurrence
 - **Multiple Model Sizes**: Choose between speed and accuracy
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Multiple Audio Formats**: Supports WAV, MP3, MP4, FLAC, M4A, OGG
@@ -98,6 +99,10 @@ Save models in the `models/` directory.
 
 # With options
 ./OfflineTranscribe-cli.exe recording.wav -model tiny -output transcript.txt
+
+# Word search - find timestamps where a word appears
+./OfflineTranscribe-cli.exe recording.wav -search hello
+./OfflineTranscribe-cli.exe recording.wav -search meeting -model base
 ```
 
 **Web Interface:**
@@ -111,6 +116,7 @@ Then open http://localhost:8080 in your browser.
 
 - `-model <size>`: Model size (tiny, base, small, medium) - default: base
 - `-output <file>`: Output file path - default: `<input>_transcription.txt`
+- `-search <word>`: Search for a specific word in the audio and return timestamps
 
 ## Output Format
 
@@ -119,6 +125,14 @@ Then open http://localhost:8080 in your browser.
 [00:00:01.240 - 00:00:03.680] Hello there, this is a sample transcription.
 
 [00:00:04.120 - 00:00:06.200] Each sentence has its own time range.
+```
+
+**Word search results:**
+```
+Found 2 occurrence(s) of 'hello':
+
+1. [00:00:01 - 00:00:03] Hello there, how are you?
+2. [00:00:05 - 00:00:07] Hello world!
 ```
 
 ## Building Your Own Bundle
@@ -223,8 +237,10 @@ OfflineTranscribe/
 ## Use Cases
 
 - **Meeting Transcription**: Convert recorded meetings to searchable text
+- **Word Search**: Find all occurrences of specific words or topics in audio files with exact timestamps
 - **Interview Analysis**: Transcribe interviews with precise timestamps
 - **Lecture Notes**: Convert recorded lectures to text with time references
+- **Content Indexing**: Quickly locate specific topics or keywords in long recordings
 - **Podcast Transcription**: Create text versions of audio content
 - **Accessibility**: Generate captions and transcripts for audio content
 - **Content Creation**: Extract quotes and segments from longer recordings
