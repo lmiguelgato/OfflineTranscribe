@@ -204,6 +204,47 @@ func (wt *WhisperTranscriber) FormatResults(result *TranscriptionResult) string 
 	return output.String()
 }
 
+// SearchWord searches for a word in the transcription and returns matching segments with timestamps
+func (wt *WhisperTranscriber) SearchWord(result *TranscriptionResult, searchWord string) []Segment {
+	var matches []Segment
+	searchWordLower := strings.ToLower(searchWord)
+	
+	for _, segment := range result.Segments {
+		// Split segment text into words and check for matches
+		words := strings.Fields(strings.ToLower(segment.Text))
+		for _, word := range words {
+			// Remove punctuation for comparison
+			cleanWord := strings.Trim(word, ".,!?;:\"'")
+			if cleanWord == searchWordLower {
+				matches = append(matches, segment)
+				break // Only add segment once even if word appears multiple times
+			}
+		}
+	}
+	
+	return matches
+}
+
+// FormatSearchResults formats search results with timestamps
+func (wt *WhisperTranscriber) FormatSearchResults(matches []Segment, searchWord string) string {
+	var output strings.Builder
+	
+	if len(matches) == 0 {
+		output.WriteString(fmt.Sprintf("No matches found for '%s'\n", searchWord))
+		return output.String()
+	}
+	
+	output.WriteString(fmt.Sprintf("Found %d occurrence(s) of '%s':\n\n", len(matches), searchWord))
+	
+	for i, segment := range matches {
+		startTime := formatTimestamp(segment.Start)
+		endTime := formatTimestamp(segment.End)
+		output.WriteString(fmt.Sprintf("%d. [%s - %s] %s\n", i+1, startTime, endTime, segment.Text))
+	}
+	
+	return output.String()
+}
+
 func (wt *WhisperTranscriber) Close() {
 	// Nothing to close for executable-based approach
 }
