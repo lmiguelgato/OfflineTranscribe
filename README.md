@@ -8,6 +8,7 @@ A standalone, offline speech-to-text transcription tool that works without an in
 - **Self-Contained Bundle**: Single executable with everything included (recommended)
 - **Multiple Interfaces**: Command-line and web browser interfaces
 - **Precise Timestamps**: Sentence-level timing information for easy navigation
+- **Word Search**: Search for specific words and get timestamps where they appear
 - **Multiple Model Sizes**: Choose between speed and accuracy
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Multiple Audio Formats**: Supports WAV, MP3, MP4, FLAC, M4A, OGG
@@ -27,6 +28,9 @@ A standalone, offline speech-to-text transcription tool that works without an in
    # CLI Usage
    OfflineTranscribe-Bundle-CLI.exe recording.wav
    OfflineTranscribe-Bundle-CLI.exe recording.wav -model tiny -output transcript.txt
+   
+   # Search for specific words
+   OfflineTranscribe-Bundle-CLI.exe recording.wav -search meeting
    
    # Web Interface
    OfflineTranscribe-Bundle-Web.exe
@@ -98,6 +102,9 @@ Save models in the `models/` directory.
 
 # With options
 ./OfflineTranscribe-cli.exe recording.wav -model tiny -output transcript.txt
+
+# Search for a word
+./OfflineTranscribe-cli.exe recording.wav -search hello
 ```
 
 **Web Interface:**
@@ -111,6 +118,35 @@ Then open http://localhost:8080 in your browser.
 
 - `-model <size>`: Model size (tiny, base, small, medium) - default: base
 - `-output <file>`: Output file path - default: `<input>_transcription.txt`
+- `-search <word>`: Search for a specific word and return timestamps where it appears
+
+## Word Search Feature
+
+Search for specific words in your audio files and get timestamps of where they appear:
+
+```bash
+# Search for a word in an audio file
+./OfflineTranscribe-cli.exe recording.wav -search meeting
+
+# Search with a specific model
+./OfflineTranscribe-cli.exe recording.wav -model base -search hello
+
+# Search and save results to a custom file
+./OfflineTranscribe-cli.exe recording.wav -search important -output search_results.txt
+```
+
+**Search results format:**
+```
+Found 'meeting' in 3 segment(s):
+
+[00:00:15 - 00:00:18] We have a meeting scheduled for tomorrow.
+
+[00:01:45 - 00:01:49] The meeting will discuss the quarterly results.
+
+[00:03:22 - 00:03:25] Please bring the meeting notes with you.
+```
+
+The search is case-insensitive and will find all segments containing the specified word.
 
 ## Output Format
 
