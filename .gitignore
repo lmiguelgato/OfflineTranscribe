@@ -1,7 +1,16 @@
-/.github
+# Build artifacts
 /dist
-*.wav
-*.txt
+OfflineTranscribe-cli
+OfflineTranscribe-web
 *.exe
 *.dll
+
+# Audio and data files
+*.wav
+
+# Model files
 *.bin
+
+# Text files except placeholders in bundle/resources
+*.txt
+!bundle/resources/**/placeholder.txt

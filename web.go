@@ -44,13 +44,13 @@ func (ws *WebServer) handleTranscribe(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	
+
 	// Handle preflight request
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -87,7 +87,7 @@ func (ws *WebServer) handleTranscribe(w http.ResponseWriter, r *http.Request) {
 	// Save uploaded file temporarily
 	tempDir := os.TempDir()
 	tempFile := filepath.Join(tempDir, header.Filename)
-	
+
 	outFile, err := os.Create(tempFile)
 	if err != nil {
 		ws.sendJSONResponse(w, TranscriptionResponse{
@@ -129,21 +129,21 @@ func (ws *WebServer) handleTranscribe(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) processAudio(inputFile, modelSize string) (string, error) {
 	log.Printf("Processing audio file: %s with model: %s", inputFile, modelSize)
-	
+
 	// Load the model
 	if err := ws.transcriber.LoadModel(modelSize); err != nil {
 		return "", fmt.Errorf("failed to load model: %v", err)
 	}
-	
+
 	// Transcribe the audio
 	result, err := ws.transcriber.TranscribeFile(inputFile, modelSize)
 	if err != nil {
 		return "", fmt.Errorf("transcription failed: %v", err)
 	}
-	
+
 	// Format the results
 	formattedOutput := ws.transcriber.FormatResults(result)
-	
+
 	return formattedOutput, nil
 }
 
@@ -156,10 +156,10 @@ func (ws *WebServer) sendJSONResponse(w http.ResponseWriter, response Transcript
 func (ws *WebServer) Start() {
 	http.HandleFunc("/", ws.handleIndex)
 	http.HandleFunc("/transcribe", ws.handleTranscribe)
-	
+
 	fmt.Printf("OfflineTranscribe Web Interface starting on http://localhost:%s\n", ws.port)
 	fmt.Println("Open your web browser and navigate to the URL above")
-	
+
 	log.Fatal(http.ListenAndServe(":"+ws.port, nil))
 }
 
@@ -168,19 +168,19 @@ func main() {
 	if len(os.Args) > 1 {
 		port = os.Args[1]
 	}
-	
+
 	// Initialize resource manager
 	resourceManager, err := NewResourceManager()
 	if err != nil {
 		log.Fatalf("Failed to initialize resources: %v", err)
 	}
 	defer resourceManager.Cleanup()
-	
+
 	// Verify resources
 	if err := resourceManager.VerifyResources(); err != nil {
 		log.Fatalf("Resource verification failed: %v", err)
 	}
-	
+
 	server := NewWebServer(port, resourceManager)
 	server.Start()
 }

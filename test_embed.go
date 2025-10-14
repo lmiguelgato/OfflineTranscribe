@@ -11,7 +11,7 @@ var embeddedResources embed.FS
 
 func main() {
 	fmt.Println("Embedded files:")
-	
+
 	// List all embedded files
 	err := listEmbeddedFiles(".")
 	if err != nil {
@@ -24,13 +24,13 @@ func listEmbeddedFiles(dir string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	for _, entry := range entries {
 		path := dir + "/" + entry.Name()
 		if dir == "." {
 			path = entry.Name()
 		}
-		
+
 		if entry.IsDir() {
 			fmt.Printf("DIR:  %s/\n", path)
 			listEmbeddedFiles(path)
@@ -38,6 +38,6 @@ func listEmbeddedFiles(dir string) error {
 			fmt.Printf("FILE: %s\n", path)
 		}
 	}
-	
+
 	return nil
 }

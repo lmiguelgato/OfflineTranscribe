@@ -64,14 +64,14 @@ func (rm *ResourceManager) extractResources() error {
 		if file.IsDir() {
 			continue
 		}
-		
+
 		sourcePath := "bundle/resources/whisper/" + file.Name()
 		destPath := filepath.Join(rm.whisperPath, file.Name())
-		
+
 		if err := rm.extractFile(sourcePath, destPath); err != nil {
 			return fmt.Errorf("failed to extract %s: %v", file.Name(), err)
 		}
-		
+
 		// Make whisper executable on Unix systems
 		if file.Name() == "whisper-cli.exe" || file.Name() == "whisper-cli" {
 			if runtime.GOOS != "windows" {
@@ -92,10 +92,10 @@ func (rm *ResourceManager) extractResources() error {
 		if file.IsDir() {
 			continue
 		}
-		
+
 		sourcePath := "bundle/resources/models/" + file.Name()
 		destPath := filepath.Join(rm.modelsDir, file.Name())
-		
+
 		if err := rm.extractFile(sourcePath, destPath); err != nil {
 			return fmt.Errorf("failed to extract model %s: %v", file.Name(), err)
 		}
@@ -173,12 +173,12 @@ func (rm *ResourceManager) ListAvailableModels() ([]string, error) {
 		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".bin" {
 			// Extract model name (remove ggml- prefix and .bin suffix)
 			name := entry.Name()
-			name = name[5:]  // Remove "ggml-"
-			name = name[:len(name)-4]  // Remove ".bin"
+			name = name[5:]           // Remove "ggml-"
+			name = name[:len(name)-4] // Remove ".bin"
 			models = append(models, name)
 		}
 	}
-	
+
 	return models, nil
 }
 
